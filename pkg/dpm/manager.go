@@ -50,12 +50,12 @@ func (dpm *Manager) Run() {
 	// Attempt to initialize filesystem watcher
 	glog.V(3).Info("Registering for notifications of filesystem changes in device plugin directory")
 	var (
-		fsWatcher     *fsnotify.Watcher
-		err           error
-		usePolling    bool
+		fsWatcher      *fsnotify.Watcher
+		err            error
+		usePolling     bool
 		pollingStartCh chan struct{}
 		pollingStopCh  chan struct{}
-		stopPolling   chan struct{}
+		stopPolling    chan struct{}
 	)
 
 	fsWatcher, err = fsnotify.NewWatcher()
@@ -93,39 +93,60 @@ func (dpm *Manager) Run() {
 	glog.V(3).Info("Handling incoming signals")
 HandleSignals:
 	for {
-		select {
-		case newPluginsList := <-pluginsCh:
-			glog.V(3).Infof("Received new list of plugins: %s", newPluginsList)
-			dpm.handleNewPlugins(pluginMap, newPluginsList)
+		if !usePolling {
+			// fsnotify mode: include fsWatcher.Events
+			select {
+			case newPluginsList := <-pluginsCh:
+				glog.V(3).Infof("Received new list of plugins: %s", newPluginsList)
+				dpm.handleNewPlugins(pluginMap, newPluginsList)
 
-		case event := <-fsWatcher.Events:
-			if event.Name == pluginapi.KubeletSocket {
-				glog.V(3).Infof("Received kubelet socket event: %s", event)
-				if event.Op&fsnotify.Create == fsnotify.Create {
-					dpm.startPluginServers(pluginMap)
+			case event := <-fsWatcher.Events:
+				if event.Name == pluginapi.KubeletSocket {
+					glog.V(3).Infof("Received kubelet socket event: %s", event)
+					if event.Op&fsnotify.Create == fsnotify.Create {
+						dpm.startPluginServers(pluginMap)
+					}
+					if event.Op&fsnotify.Remove == fsnotify.Remove {
+						dpm.stopPluginServers(pluginMap)
+					}
 				}
-				if event.Op&fsnotify.Remove == fsnotify.Remove {
-					dpm.stopPluginServers(pluginMap)
+
+			case s := <-signalCh:
+				switch s {
+				case syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT:
+					glog.V(3).Infof("Received signal \"%v\", shutting down", s)
+					if usePolling {
+						close(stopPolling)
+					}
+					dpm.stopPlugins(pluginMap)
+					break HandleSignals
 				}
 			}
+		} else {
+			// Polling mode: include pollingStartCh and pollingStopCh
+			select {
+			case newPluginsList := <-pluginsCh:
+				glog.V(3).Infof("Received new list of plugins: %s", newPluginsList)
+				dpm.handleNewPlugins(pluginMap, newPluginsList)
 
-		case <-pollingStartCh:
-			glog.V(3).Infof("Kubelet socket modified or created (polling)")
-			dpm.startPluginServers(pluginMap)
+			case <-pollingStartCh:
+				glog.V(3).Infof("Kubelet socket modified or created (polling)")
+				dpm.startPluginServers(pluginMap)
 
-		case <-pollingStopCh:
-			glog.V(3).Infof("Kubelet socket removed (polling)")
-			dpm.stopPluginServers(pluginMap)
+			case <-pollingStopCh:
+				glog.V(3).Infof("Kubelet socket removed (polling)")
+				dpm.stopPluginServers(pluginMap)
 
-		case s := <-signalCh:
-			switch s {
-			case syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT:
-				glog.V(3).Infof("Received signal \"%v\", shutting down", s)
-				if usePolling {
-					close(stopPolling)
+			case s := <-signalCh:
+				switch s {
+				case syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT:
+					glog.V(3).Infof("Received signal \"%v\", shutting down", s)
+					if usePolling {
+						close(stopPolling)
+					}
+					dpm.stopPlugins(pluginMap)
+					break HandleSignals
 				}
-				dpm.stopPlugins(pluginMap)
-				break HandleSignals
 			}
 		}
 	}
