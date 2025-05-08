@@ -40,10 +40,10 @@ func NewManager(lister ListerInterface) *Manager {
 // Run starts the Manager. It sets up the infrastructure and handles system signals, Kubelet socket
 // watch and monitoring of available resources as well as starting and stopping of plugins.
 func (dpm *Manager) Run() {
-	glog.V(3).Info("Starting device plugin manager")
+	glog.V(0).Info("Starting device plugin manager")
 
 	// Listen for termination signals
-	glog.V(3).Info("Registering for system signal notifications")
+	glog.V(0).Info("Registering for system signal notifications")
 	signalCh := make(chan os.Signal, 1)
 	signal.Notify(signalCh, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT)
 
@@ -285,7 +285,7 @@ func stopPluginServer(pluginLastName string, plugin devicePlugin) {
 }
 
 func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, stop chan struct{}) {
-	glog.V(3).Infof("Starting polling for socket: %s", socket)
+	glog.V(0).Infof("Starting polling for socket: %s", socket)
 	socketPath := filepath.Join(dir, socket)
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
