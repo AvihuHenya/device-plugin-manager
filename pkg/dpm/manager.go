@@ -110,7 +110,7 @@ HandleSignals:
 			case s := <-signalCh:
 				switch s {
 				case syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT:
-					glog.V(0).Infof("Received signal \"%v\", shutting down", s)
+					glog.V(1).Infof("Received signal \"%v\", shutting down", s)
 					if usePolling {
 						close(stopPolling)
 					}
@@ -121,17 +121,17 @@ HandleSignals:
 		} else {
 			select {
 			case newPluginsList := <-pluginsCh:
-				glog.V(0).Infof("Received new list of plugins: %s", newPluginsList)
+				glog.V(1).Infof("Received new list of plugins: %s", newPluginsList)
 				dpm.handleNewPlugins(pluginMap, newPluginsList)
 
 			case <-pollingStartCh:
-				glog.V(0).Infof("Kubelet socket modified or created (polling)")
+				glog.V(1).Infof("Kubelet socket modified or created (polling)")
 				dpm.startPluginServers(pluginMap)
 
 			case s := <-signalCh:
 				switch s {
 				case syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGINT:
-					glog.V(0).Infof("Received signal \"%v\", shutting down", s)
+					glog.V(1).Infof("Received signal \"%v\", shutting down", s)
 					if usePolling {
 						close(stopPolling)
 					}
@@ -157,7 +157,7 @@ func (dpm *Manager) handleNewPlugins(currentPluginsMap map[string]devicePlugin, 
 		go func(name string) {
 			if _, ok := currentPluginsMap[name]; !ok {
 				// add new plugin only if it doesn't already exist
-				glog.V(0).Infof("Adding a new plugin \"%s\"", name)
+				glog.V(1).Infof("Adding a new plugin \"%s\"", name)
 				plugin := newDevicePlugin(dpm.lister.GetResourceNamespace(), name, dpm.lister.NewPlugin(name))
 				startPlugin(name, plugin)
 				pluginMapMutex.Lock()
@@ -174,7 +174,7 @@ func (dpm *Manager) handleNewPlugins(currentPluginsMap map[string]devicePlugin, 
 		wg.Add(1)
 		go func(name string, plugin devicePlugin) {
 			if _, found := newPluginsSet[name]; !found {
-				glog.V(0).Infof("Remove unused plugin \"%s\"", name)
+				glog.V(1).Infof("Remove unused plugin \"%s\"", name)
 				stopPlugin(name, plugin)
 				pluginMapMutex.Lock()
 				delete(currentPluginsMap, name)
@@ -258,7 +258,7 @@ func startPluginServer(pluginLastName string, plugin devicePlugin) {
 		if err == nil {
 			return
 		} else if i == startPluginServerRetries {
-			glog.V(0).Infof("Failed to start plugin's \"%s\" server, within given %d tries: %s",
+			glog.V(1).Infof("Failed to start plugin's \"%s\" server, within given %d tries: %s",
 				pluginLastName, startPluginServerRetries, err)
 		} else {
 			glog.Errorf("Failed to start plugin's \"%s\" server, attempt %d out of %d waiting %d before next try: %s",
@@ -286,7 +286,6 @@ func startPolling(socketPath string, notifyStart chan struct{}, stop chan struct
 	for {
 		select {
 		case <-ticker.C:
-			glog.V(0).Infof("Polling tick, socketExists: %v", socketExists)
 			info, err := os.Stat(socketPath)
 			if err == nil {
 				// Socket exists
@@ -294,16 +293,16 @@ func startPolling(socketPath string, notifyStart chan struct{}, stop chan struct
 				if !socketExists || modTime.After(lastModTime) {
 					lastModTime = modTime
 					socketExists = true
-					glog.V(0).Infof("Detected modification or creation of: %s", socketPath)
+					glog.V(1).Infof("Detected modification or creation of: %s", socketPath)
 					select {
 					case notifyStart <- struct{}{}:
-						glog.V(0).Infof("Sent notifyStart signal")
+						glog.V(1).Infof("Sent notifyStart signal")
 					default:
 					}
 				}
 			} else {
 				// Socket does not exist or other error occurred
-				glog.V(0).Infof("os.Stat(%s) error: %v", socketPath, err)
+				glog.V(1).Infof("os.Stat(%s) error: %v", socketPath, err)
 			}
 
 		case <-stop:
