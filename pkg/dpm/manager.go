@@ -289,6 +289,7 @@ func startPolling(socketPath string, notifyStart, notifyStop chan struct{}, stop
 	defer ticker.Stop()
 
 	var lastModTime time.Time
+	glog.V(0).Infof("Initial modTime: %v", lastModTime)
 	socketExists := false
 
 	for {
@@ -301,6 +302,7 @@ func startPolling(socketPath string, notifyStart, notifyStop chan struct{}, stop
 				modTime := info.ModTime()
 				glog.V(0).Infof("modTime: %v", modTime)
 				glog.V(0).Infof("modTime.After(lastModTime): %v", modTime.After(lastModTime))
+				glog.V(0).Infof("socketExists: %v", socketExists)
 				if !socketExists || modTime.After(lastModTime) {
 					lastModTime = modTime
 					socketExists = true
