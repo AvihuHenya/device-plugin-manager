@@ -293,6 +293,7 @@ func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, sto
 	var lastModTime time.Time
 	socketExists := false
 
+	glog.V(0).Infof("lastModTime: %v", lastModTime)
 	for {
 		select {
 		case <-ticker.C:
@@ -301,6 +302,8 @@ func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, sto
 			if err == nil {
 				// Socket exists
 				modTime := info.ModTime()
+				glog.V(0).Infof("modTime: %v", modTime)
+				glog.V(0).Infof("modTime.After(lastModTime): %v", modTime.After(lastModTime))
 				if !socketExists || modTime.After(lastModTime) {
 					lastModTime = modTime
 					socketExists = true
