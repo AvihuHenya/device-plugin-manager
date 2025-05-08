@@ -283,7 +283,7 @@ func stopPluginServer(pluginLastName string, plugin devicePlugin) {
 	}
 }
 
-func startPolling(socketPath string, notifyStart, notifyStop chan struct{}, stop chan struct{}) {
+func startPolling(socketPath string, notifyStart chan struct{}, stop chan struct{}) {
 	glog.V(0).Infof("Starting polling for socket: %s", socketPath)
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
@@ -295,38 +295,27 @@ func startPolling(socketPath string, notifyStart, notifyStop chan struct{}, stop
 	for {
 		select {
 		case <-ticker.C:
-			glog.V(0).Infof("tick")
+			glog.V(0).Infof("Polling tick, socketExists: %v", socketExists)
 			info, err := os.Stat(socketPath)
 			if err == nil {
 				// Socket exists
 				modTime := info.ModTime()
-				glog.V(0).Infof("modTime: %v", modTime)
-				glog.V(0).Infof("modTime.After(lastModTime): %v", modTime.After(lastModTime))
-				glog.V(0).Infof("socketExists: %v", socketExists)
+				glog.V(0).Infof("modTime: %v, modTime.After(lastModTime): %v", modTime, modTime.After(lastModTime))
 				if !socketExists || modTime.After(lastModTime) {
 					lastModTime = modTime
 					socketExists = true
 					glog.V(0).Infof("Detected modification or creation of: %s", socketPath)
 					select {
 					case notifyStart <- struct{}{}:
+						glog.V(0).Infof("Sent notifyStart signal")
 					default:
+						glog.V(0).Infof("Dropped notifyStart signal due to full channel")
 					}
 				}
 			} else {
+				// Socket does not exist or other error occurred
 				glog.V(0).Infof("os.Stat(%s) error: %v", socketPath, err)
-				// Socket does not exist or error occurred
-				if socketExists && os.IsNotExist(err) {
-					// Socket was removed
-					socketExists = false
-					lastModTime = time.Time{}
-					glog.V(0).Infof("Detected removal of: %s", socketPath)
-					select {
-					case notifyStop <- struct{}{}:
-					default:
-					}
-				} else if !os.IsNotExist(err) {
-					glog.Warningf("Polling error accessing socket %s: %v", socketPath, err)
-				}
+				// Do nothing, wait for next polling cycle
 			}
 
 		case <-stop:
