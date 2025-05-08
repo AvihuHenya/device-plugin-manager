@@ -3,7 +3,6 @@ package dpm
 import (
 	"os"
 	"os/signal"
-	"path/filepath"
 	"sync"
 	"syscall"
 	"time"
@@ -65,7 +64,7 @@ func (dpm *Manager) Run() {
 		pollingStartCh = make(chan struct{}, 1) // Buffered channel for socket creation/modification
 		pollingStopCh = make(chan struct{}, 1)  // Buffered channel for socket removal
 		stopPolling = make(chan struct{})
-		go startPolling(pluginapi.DevicePluginPath, pluginapi.KubeletSocket, pollingStartCh, pollingStopCh, stopPolling)
+		go startPolling(pluginapi.KubeletSocket, pollingStartCh, pollingStopCh, stopPolling)
 	} else {
 		err = fsWatcher.Add(pluginapi.DevicePluginPath)
 		if err != nil {
@@ -76,7 +75,7 @@ func (dpm *Manager) Run() {
 			stopPolling = make(chan struct{})
 			fsWatcher.Close()
 			fsWatcher = nil
-			go startPolling(pluginapi.DevicePluginPath, pluginapi.KubeletSocket, pollingStartCh, pollingStopCh, stopPolling)
+			go startPolling(pluginapi.KubeletSocket, pollingStartCh, pollingStopCh, stopPolling)
 		} else {
 			defer fsWatcher.Close()
 		}
@@ -284,9 +283,8 @@ func stopPluginServer(pluginLastName string, plugin devicePlugin) {
 	}
 }
 
-func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, stop chan struct{}) {
-	glog.V(0).Infof("Starting polling for socket: %s", socket)
-	socketPath := filepath.Join(dir, socket)
+func startPolling(socketPath string, notifyStart, notifyStop chan struct{}, stop chan struct{}) {
+	glog.V(0).Infof("Starting polling for socket: %s", socketPath)
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
