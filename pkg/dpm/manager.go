@@ -287,7 +287,7 @@ func stopPluginServer(pluginLastName string, plugin devicePlugin) {
 func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, stop chan struct{}) {
 	glog.V(0).Infof("Starting polling for socket: %s", socket)
 	socketPath := filepath.Join(dir, socket)
-	ticker := time.NewTicker(2 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	var lastModTime time.Time
@@ -296,6 +296,7 @@ func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, sto
 	for {
 		select {
 		case <-ticker.C:
+			glog.V(0).Infof("tick")
 			info, err := os.Stat(socketPath)
 			if err == nil {
 				// Socket exists
