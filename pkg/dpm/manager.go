@@ -293,7 +293,6 @@ func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, sto
 	var lastModTime time.Time
 	socketExists := false
 
-	glog.V(0).Infof("lastModTime: %v", lastModTime)
 	for {
 		select {
 		case <-ticker.C:
@@ -314,6 +313,7 @@ func startPolling(dir, socket string, notifyStart, notifyStop chan struct{}, sto
 					}
 				}
 			} else {
+				glog.V(0).Infof("os.Stat(%s) error: %v", socketPath, err)
 				// Socket does not exist or error occurred
 				if socketExists && os.IsNotExist(err) {
 					// Socket was removed
