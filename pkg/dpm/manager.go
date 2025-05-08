@@ -62,7 +62,6 @@ func (dpm *Manager) Run() {
 		glog.Warningf("Failed to create fsnotify watcher: %v, falling back to polling", err)
 		usePolling = true
 		pollingStartCh = make(chan struct{}, 1) // Buffered channel for socket creation/modification
-		pollingStopCh = make(chan struct{}, 1)  // Buffered channel for socket removal
 		stopPolling = make(chan struct{})
 		go startPolling(pluginapi.KubeletSocket, pollingStartCh, stopPolling)
 	} else {
@@ -71,7 +70,6 @@ func (dpm *Manager) Run() {
 			glog.Warningf("Failed to watch device plugin path: %v, falling back to polling", err)
 			usePolling = true
 			pollingStartCh = make(chan struct{}, 1) // Buffered channel for socket creation/modification
-			pollingStopCh = make(chan struct{}, 1)  // Buffered channel for socket removal
 			stopPolling = make(chan struct{})
 			fsWatcher.Close()
 			fsWatcher = nil
@@ -289,7 +287,6 @@ func startPolling(socketPath string, notifyStart chan struct{}, stop chan struct
 	defer ticker.Stop()
 
 	var lastModTime time.Time
-	glog.V(0).Infof("Initial modTime: %v", lastModTime)
 	socketExists := false
 
 	for {
@@ -300,7 +297,6 @@ func startPolling(socketPath string, notifyStart chan struct{}, stop chan struct
 			if err == nil {
 				// Socket exists
 				modTime := info.ModTime()
-				glog.V(0).Infof("modTime: %v, modTime.After(lastModTime): %v", modTime, modTime.After(lastModTime))
 				if !socketExists || modTime.After(lastModTime) {
 					lastModTime = modTime
 					socketExists = true
@@ -309,13 +305,11 @@ func startPolling(socketPath string, notifyStart chan struct{}, stop chan struct
 					case notifyStart <- struct{}{}:
 						glog.V(0).Infof("Sent notifyStart signal")
 					default:
-						glog.V(0).Infof("Dropped notifyStart signal due to full channel")
 					}
 				}
 			} else {
 				// Socket does not exist or other error occurred
 				glog.V(0).Infof("os.Stat(%s) error: %v", socketPath, err)
-				// Do nothing, wait for next polling cycle
 			}
 
 		case <-stop:
