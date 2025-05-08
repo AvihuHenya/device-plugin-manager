@@ -64,7 +64,7 @@ func (dpm *Manager) Run() {
 		pollingStartCh = make(chan struct{}, 1) // Buffered channel for socket creation/modification
 		pollingStopCh = make(chan struct{}, 1)  // Buffered channel for socket removal
 		stopPolling = make(chan struct{})
-		go startPolling(pluginapi.KubeletSocket, pollingStartCh, pollingStopCh, stopPolling)
+		go startPolling(pluginapi.KubeletSocket, pollingStartCh, stopPolling)
 	} else {
 		err = fsWatcher.Add(pluginapi.DevicePluginPath)
 		if err != nil {
@@ -75,7 +75,7 @@ func (dpm *Manager) Run() {
 			stopPolling = make(chan struct{})
 			fsWatcher.Close()
 			fsWatcher = nil
-			go startPolling(pluginapi.KubeletSocket, pollingStartCh, pollingStopCh, stopPolling)
+			go startPolling(pluginapi.KubeletSocket, pollingStartCh, stopPolling)
 		} else {
 			defer fsWatcher.Close()
 		}
