@@ -53,7 +53,6 @@ func (dpm *Manager) Run() {
 		err            error
 		usePolling     bool
 		pollingStartCh chan struct{}
-		pollingStopCh  chan struct{}
 		stopPolling    chan struct{}
 	)
 
@@ -120,7 +119,6 @@ HandleSignals:
 				}
 			}
 		} else {
-			// Polling mode: include pollingStartCh and pollingStopCh
 			select {
 			case newPluginsList := <-pluginsCh:
 				glog.V(0).Infof("Received new list of plugins: %s", newPluginsList)
@@ -129,10 +127,6 @@ HandleSignals:
 			case <-pollingStartCh:
 				glog.V(0).Infof("Kubelet socket modified or created (polling)")
 				dpm.startPluginServers(pluginMap)
-
-			case <-pollingStopCh:
-				glog.V(0).Infof("Kubelet socket removed (polling)")
-				dpm.stopPluginServers(pluginMap)
 
 			case s := <-signalCh:
 				switch s {
