@@ -81,9 +81,7 @@ func (dpm *Manager) Run() {
 			fsWatcher.Close()
 			fsWatcher = nil
 			go startPolling(pluginapi.KubeletSocket, pollingStartCh, stopPolling)
-		} else {
-			defer fsWatcher.Close()
-		}
+		} 
 	}
 
 	// Start plugin discovery
