@@ -58,6 +58,13 @@ func (dpm *Manager) Run() {
 	)
 
 	fsWatcher, err = fsnotify.NewWatcher()
+
+	defer func() {
+		if fsWatcher != nil {
+			fsWatcher.Close()
+		}
+	}()
+
 	if err != nil {
 		glog.Warningf("Failed to create fsnotify watcher: %v, falling back to polling", err)
 		usePolling = true
